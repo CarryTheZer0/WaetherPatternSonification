@@ -3,5 +3,5 @@
 void MidiCallback::messageCallback()
 {
     if (m_owner != nullptr)
-        m_owner->addMessage(m_message, m_source);
+        m_owner->processMessage(m_message, m_source);
 }
