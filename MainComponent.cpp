@@ -1,41 +1,48 @@
 #include "MainComponent.h"
 
-//==============================================================================
 MainComponent::MainComponent() :
-    m_pos(0),
-    m_midiHandler(this)
+    m_midiHandler(this),
+    m_mapComp(0, 0)
 {
     setSize (600, 400);
+    juce::Rectangle<int> rect = getLocalBounds();
+    m_mapComp.setSize(rect.getWidth() - rect.getWidth() * 0.1, rect.getHeight() - rect.getHeight() * 0.1);
+    m_mapComp.setCentrePosition(rect.getCentre());
     m_midiHandler.setMidiInput(&m_deviceManager);
+    addAndMakeVisible(m_mapComp);
 }
 
 MainComponent::~MainComponent()
 {
 }
 
-//==============================================================================
 void MainComponent::paint (juce::Graphics& g)
 {
+    juce::Rectangle<int> windowRect = getLocalBounds();
+
+    // compute division only once
+    int halfWidth = windowRect.getWidth() / 2;
+    int halfHeight = windowRect.getHeight() / 2;
+
     // (Our component is opaque, so we must completely fill the background with a solid colour)
     g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
-
-    g.setFont (juce::Font (16.0f));
-    g.setColour (juce::Colours::white);
-    //juce::Line<float> myLine = juce::Line<float>(0.0f, 0.0f, 100.0f, 100.0f);
-    //g.drawDashedLine(myLine, m_dashLengths, 50, 1.0f, 0);
-    juce::Rectangle<int> rect = getLocalBounds();
-    rect.setX(rect.getX() + m_pos);
-    g.drawText ("Hello World!", rect, juce::Justification::centred, true);
 }
 
 void MainComponent::resized()
 {
-    // This is called when the MainComponent is resized.
-    // If you add any child components, this is where you should
-    // update their positions.
+    juce::Rectangle<int> rect = getLocalBounds();
+    m_mapComp.setSize(rect.getWidth() - rect.getWidth() * 0.1, rect.getHeight() - rect.getHeight() * 0.1);
+    m_mapComp.setCentrePosition(rect.getCentre());
+    m_mapComp.resized();
 }
 
 void MainComponent::processMessage(const juce::MidiMessage& m, juce::String& s)
 {
-    m_pos += 10.0f;
+    juce::uint8 vel = m.getVelocity();
+    if (m.getNoteNumber() == 35 && m.isNoteOn())
+        m_mapComp.addX(vel * 0.05f);
+    else if (m.getNoteNumber() == 39 && m.isNoteOn())
+        m_mapComp.addX(-vel * 0.05f);
+
+    repaint();
 }
