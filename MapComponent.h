@@ -7,7 +7,7 @@ class MapComponent : public juce::Component
 public:
     MapComponent() = delete;
     MapComponent(int w, int h);
-    ~MapComponent() override;
+    ~MapComponent() override = default;
 
     void paint(juce::Graphics&) override;
     void resized() override;
@@ -18,7 +18,6 @@ public:
 
     juce::Point<int> getPos() { return m_pos; }
 private:
-
     juce::Image m_image;
     juce::Point<int> m_pos;
 };

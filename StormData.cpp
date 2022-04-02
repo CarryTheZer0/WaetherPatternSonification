@@ -122,3 +122,17 @@ void StormData::set_line(unsigned int lineNo)
 {
 	m_lineReader.set_file_line(lineNo + 1);
 }
+
+std::vector<StormDataItem> StormData::getDataInRange(time_t start, time_t end)
+{
+	std::vector<StormDataItem> outVect;
+	auto it = m_data.lower_bound(start);
+
+	while (it != m_data.end() && it->first < end)
+	{
+		outVect.push_back(it->second);
+		it++;
+	}
+
+	return outVect;
+}

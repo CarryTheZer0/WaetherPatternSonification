@@ -25,6 +25,8 @@ public:
 
 	float getPositionDataPoint(std::string dataPoint);
 
+	std::vector<StormDataItem> getDataInRange(time_t start, time_t end);
+
 	std::vector<std::string> to_vector(char* line);
 private:
 	io::LineReader m_lineReader;
