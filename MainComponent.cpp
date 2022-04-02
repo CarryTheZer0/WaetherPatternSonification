@@ -2,7 +2,8 @@
 
 MainComponent::MainComponent() :
     m_midiHandler(this),
-    m_mapComp(0, 0)
+    m_mapComp(0, 0),
+    m_data("Data\\StormEvents_details-ftp_v1.0_d2010_c20170726.csv")
 {
     setSize (600, 400);
     juce::Rectangle<int> rect = getLocalBounds();
@@ -10,6 +11,8 @@ MainComponent::MainComponent() :
     m_mapComp.setCentrePosition(rect.getCentre());
     m_midiHandler.setMidiInput(&m_deviceManager);
     addAndMakeVisible(m_mapComp);
+
+    m_data.readFile(2010);
 }
 
 MainComponent::~MainComponent()
