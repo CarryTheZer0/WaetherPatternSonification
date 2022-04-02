@@ -4,6 +4,8 @@
 #include "MidiHandler.h"
 #include "MapComponent.h"
 
+#include "StormData.h"
+
 /*
     This component lives inside our window, and this is where you should put all
     your controls and content.
@@ -22,6 +24,7 @@ private:
     juce::AudioDeviceManager m_deviceManager;
     MidiHandler m_midiHandler;
     MapComponent m_mapComp;
+    StormData m_data;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
