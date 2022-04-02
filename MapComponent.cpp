@@ -8,10 +8,6 @@ MapComponent::MapComponent(int w, int h) :
     m_image = juce::ImageFileFormat::loadFrom(file);
 }
 
-MapComponent::~MapComponent()
-{
-}
-
 void MapComponent::paint(juce::Graphics& g)
 {
     juce::Rectangle<int> windowRect = getLocalBounds();
