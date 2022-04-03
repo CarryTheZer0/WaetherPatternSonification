@@ -3,16 +3,17 @@
 MainComponent::MainComponent() :
     m_midiHandler(this),
     m_mapComp(0, 0),
-    m_data("Data\\StormEvents_details-ftp_v1.0_d2010_c20170726.csv"),
+    m_data("Data\\StormEvents_details-ftp_v1.0_d2010_c20170726.csv", 2010),
     m_startBtton("Button"),
     m_playingSound(false),
     m_metronome(this)
 {
-    setSize (600, 400);
+    setSize (1259, 682);
     setAudioChannels(2, 2);
 
     juce::Rectangle<int> rect = getLocalBounds();
     m_mapComp.setSize(rect.getWidth() - rect.getWidth() * 0.1, rect.getHeight() - rect.getHeight() * 0.1);
+    m_mapComp.resized();
     m_mapComp.setCentrePosition(rect.getCentre());
     m_midiHandler.setMidiInput(&m_deviceManager);
     addAndMakeVisible(m_startBtton);
@@ -20,41 +21,34 @@ MainComponent::MainComponent() :
 
     m_startBtton.onClick = [&]()
     {
-        std::tm dateTime;
-        dateTime.tm_year = 2010 - 1900;
-        dateTime.tm_mon = 0;
-        dateTime.tm_mday = 0;
-        dateTime.tm_hour = 0;
-        dateTime.tm_min = 0;
+        if (m_data.getIsLoaded())
+        {
+            m_data.resetDate();
 
-        m_metronome.setTime(std::mktime(&dateTime));
-        m_metronome.setStep(86400); // 1 day
-        m_metronome.startTimer(10); // every second
+            m_metronome.setStep(86400); // 1 day
+            m_metronome.startTimer(10); // every second
+        }
     };
 
     m_oscillator.initialise( [] (float x) { return std::sin(x); }, 128);
     m_oscillator.setFrequency(440);
 
-    m_data.readFile(2010);
+    m_loadThread = std::thread([&]() { m_data.readFile(); });
+    m_startBtton.setBounds(getLocalBounds());
 }
 
 MainComponent::~MainComponent()
 {
+    m_data.stop();
+    m_loadThread.join();
     shutdownAudio();
 }
 
 void MainComponent::paint (juce::Graphics& g)
 {
-    juce::Rectangle<int> windowRect = getLocalBounds();
-
-    // compute division only once
-    int halfWidth = windowRect.getWidth() / 2;
-    int halfHeight = windowRect.getHeight() / 2;
-
     // fill background
     g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
 
-    m_startBtton.setBounds(windowRect);
     m_startBtton.paintButton(g, false, false);
 }
 
@@ -107,10 +101,27 @@ void MainComponent::processMessage(const juce::MidiMessage& m, juce::String& s)
     repaint();
 }
 
-void MainComponent::stepThroughData(time_t start, time_t end)
+void MainComponent::stepThroughData(time_t step)
 {
-    std::vector<StormDataItem> myVect = m_data.getDataInRange(start, end);
-    if (myVect.size() > 0)
+    if (m_data.getEndOfDataReached())
+    {
+        m_metronome.stopTimer();
+        return;
+    }
+
+    std::vector<StormDataItem> myVect = m_data.stepThroughData(step);
+
+    juce::Point<float> coords = m_mapComp.getCoords();
+
+    int count = 0;
+    
+    for (const StormDataItem &item : myVect)
+    {
+        if (juce::Point<float>(item.longitude, item.latitude).getDistanceFrom(coords) < 3)
+            count++;
+    }
+
+    if (count)
     {
         m_oscillator.reset();
         m_playingSound = true;

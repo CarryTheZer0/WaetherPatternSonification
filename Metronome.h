@@ -16,11 +16,9 @@ public:
 
 	void timerCallback() override;
 
-	void setTime(time_t newTime) { m_currentTime = newTime; }
 	void setStep(time_t newStep) { m_stepSize = newStep; }
 private:
 	time_t m_stepSize;
-	time_t m_currentTime;
 
 	MainComponent* m_pParent;
 };

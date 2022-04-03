@@ -1,55 +1,61 @@
 #include "MapComponent.h"
 
 MapComponent::MapComponent(int w, int h) :
-    m_pos(0, 0)
+    m_pos(0, 0),
+    m_imageComp("MapImage"),
+    m_cursorComp(w, h),
+    m_coords(-95.0f, 37.0f),
+    m_coordBounds(-126.067436f, 49.655963f, -126.067436f - -65.888768f, 49.655963f - 24.108747f)
 {
     setSize(w, h);
     juce::File file = juce::File::getCurrentWorkingDirectory().getChildFile("USMap.PNG");
     m_image = juce::ImageFileFormat::loadFrom(file);
+
+    addAndMakeVisible(m_imageComp);
+    addAndMakeVisible(m_cursorComp);
+    m_imageComp.setImage(m_image, juce::RectanglePlacement(356));
 }
 
 void MapComponent::paint(juce::Graphics& g)
 {
-    juce::Rectangle<int> windowRect = getLocalBounds();
-
-    // compute division only once
-    int halfWidth = windowRect.getWidth() / 2;
-    int halfHeight = windowRect.getHeight() / 2;
-
     // (Our component is opaque, so we must completely fill the background with a solid colour)
     g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
 
-    g.setColour(juce::Colours::white);
-    g.drawImageAt(m_image, 0, 0, false);
-
-    // draw four dashed lines from a common point - creates a cross pattern at the centre
-    const float dashLengths[2] = { 5.0f, 5.0f };
-    juce::Line<float> upLine = juce::Line<float>(halfWidth + m_pos.x, halfHeight + m_pos.y, halfWidth + m_pos.x, 0.0f);
-    juce::Line<float> downLine = juce::Line<float>(halfWidth + m_pos.x, halfHeight + m_pos.y, halfWidth + m_pos.x, windowRect.getHeight());
-    juce::Line<float> leftLine = juce::Line<float>(halfWidth + m_pos.x, halfHeight + m_pos.y, 0.0f, halfHeight + m_pos.y);
-    juce::Line<float> rightLine = juce::Line<float>(halfWidth + m_pos.x, halfHeight + m_pos.y, windowRect.getWidth(), halfHeight + m_pos.y);
-    g.drawDashedLine(upLine, dashLengths, 2, 1.0f, 0);
-    g.drawDashedLine(downLine, dashLengths, 2, 1.0f, 0);
-    g.drawDashedLine(leftLine, dashLengths, 2, 1.0f, 0);
-    g.drawDashedLine(rightLine, dashLengths, 2, 1.0f, 0);
+    m_imageComp.paint(g);
+    m_cursorComp.paint(g);
 }
 
 void MapComponent::resized()
-{}
-
-void MapComponent::setPos(int x, int y)
 {
-    m_pos.x = x;
-    m_pos.y = y;
-    repaint();
+    m_imageComp.setBounds(getLocalBounds());
+    m_cursorComp.setBounds(getLocalBounds());
+    m_imageComp.resized();
+    m_cursorComp.resized();
 }
 
-void MapComponent::addX(int val) 
+void MapComponent::setPos()
 {
-    m_pos.x += val;
+    juce::Point<int> pos = coordsToPixels(m_coords);
+    m_cursorComp.setPos(pos.x, pos.y);
 }
 
-void MapComponent::addY(int val)
+void MapComponent::addX(float val)
 {
-    m_pos.y += val;
+    m_coords.x += val;
+    setPos();
+}
+
+void MapComponent::addY(float val)
+{
+    m_coords.y += val;
+    setPos();
+}
+
+juce::Point<int> MapComponent::coordsToPixels(juce::Point<float> coords)
+{
+    float xPercent = (coords.x - m_coordBounds.getX()) / m_coordBounds.getWidth();
+    int xPix = xPercent * getLocalBounds().getWidth();
+    float yPercent = (coords.y - m_coordBounds.getY()) / m_coordBounds.getHeight();
+    int yPix = yPercent * getLocalBounds().getHeight();
+    return juce::Point<int>(-xPix, -yPix);
 }

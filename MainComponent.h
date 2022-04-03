@@ -1,16 +1,15 @@
 #pragma once
 
 #include <JuceHeader.h>
+
+#include <thread>
+
 #include "MidiHandler.h"
 #include "MapComponent.h"
 
 #include "StormData.h"
 #include "Metronome.h"
 
-/*
-    This component lives inside our window, and this is where you should put all
-    your controls and content.
-*/
 class MainComponent  : public juce::AudioAppComponent
 {
 public:
@@ -25,7 +24,7 @@ public:
     void resized() override;
     void processMessage(const juce::MidiMessage& m, juce::String& s);
 
-    void stepThroughData(time_t start, time_t end);
+    void stepThroughData(time_t step);
 
 private:
     juce::AudioDeviceManager m_deviceManager;
@@ -38,6 +37,9 @@ private:
     juce::dsp::Oscillator<float> m_oscillator;
     juce::dsp::Gain<float> m_mainGain;
     bool m_playingSound;
+
+    std::thread m_loadThread;
+
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

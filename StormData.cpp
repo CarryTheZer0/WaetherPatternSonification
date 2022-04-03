@@ -1,16 +1,37 @@
 #include "StormData.h"
 
-StormData::StormData(std::string filename) :
-	m_lineReader(filename)
+StormData::StormData(std::string filename, int year) :
+	m_filename(filename),
+	m_isLoaded(false),
+	m_lineCount(0),
+	m_endOfDataReached(false),
+	m_year(year),
+	m_currentTime(0),
+	m_stop(false)
 {
-	const char* header = m_lineReader.next_line();
+	// get line count
+	io::LineReader reader(m_filename);
+	// skip header
+	reader.next_line();
+	// do the count
+	while (char* line = reader.next_line())
+		m_lineCount++;
+
+	resetDate();
 }
 
-void StormData::readFile(int year)
+void StormData::readFile()
 {
-	while (char* line = m_lineReader.next_line()) 
+	io::LineReader reader(m_filename);
+	// skip header
+	reader.next_line();
+
+	while (char* line = reader.next_line())
 	{
-		StormDataItem item;
+		if (m_stop)
+			break;
+
+		StormDataItem item{};
 		
 		std::vector<std::string> output = to_vector(line);
 		std::tm dateTime{};
@@ -18,7 +39,7 @@ void StormData::readFile(int year)
 		// try catch block to catch invalid data entry i.e blank longitude and latitude
 		try {
 			// process time data
-			dateTime.tm_year = year - 1900;
+			dateTime.tm_year = m_year - 1900;
 			dateTime.tm_mon = getMonth(output[0]);
 			dateTime.tm_mday = std::stoi(output[1]);
 			dateTime.tm_hour = getHour(output[2]);
@@ -43,6 +64,7 @@ void StormData::readFile(int year)
 		m_data.emplace(std::mktime(&dateTime), item);
 	}
 
+	m_isLoaded = true;
 	return;
 }
  
@@ -118,21 +140,33 @@ std::vector<std::string> StormData::to_vector(char* line)
 	return vect;
 }
 
-void StormData::set_line(unsigned int lineNo)
-{
-	m_lineReader.set_file_line(lineNo + 1);
-}
-
-std::vector<StormDataItem> StormData::getDataInRange(time_t start, time_t end)
+std::vector<StormDataItem> StormData::stepThroughData(time_t step)
 {
 	std::vector<StormDataItem> outVect;
-	auto it = m_data.lower_bound(start);
+	auto it = m_data.lower_bound(m_currentTime);
 
-	while (it != m_data.end() && it->first < end)
+	m_currentTime += step;
+
+	while (it != m_data.end() && it->first < m_currentTime)
 	{
+		if (it == m_data.end())
+			m_endOfDataReached = true;
 		outVect.push_back(it->second);
 		it++;
 	}
 
 	return outVect;
+}
+
+void StormData::resetDate()
+{
+	// set start time
+	std::tm dateTime{};
+	dateTime.tm_year = m_year - 1900; // years from 1900 as per tm strcut definition
+	dateTime.tm_mon = 0;
+	dateTime.tm_mday = 0;
+	dateTime.tm_hour = 0;
+	dateTime.tm_min = 0;
+	// convert to epoch time
+	m_currentTime = std::mktime(&dateTime);
 }
