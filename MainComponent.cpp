@@ -1,7 +1,6 @@
 #include "MainComponent.h"
 
-MainComponent::MainComponent(juce::ComponentBoundsConstrainer* pParentConstrainer) :
-    m_pParentConstrainer(pParentConstrainer),
+MainComponent::MainComponent() :
     m_midiHandler(this),
     m_mapComp(0, 0),
     m_data("Data\\StormEvents_details-ftp_v1.0_d2010_c20170726.csv", 2010),
@@ -10,11 +9,11 @@ MainComponent::MainComponent(juce::ComponentBoundsConstrainer* pParentConstraine
     m_metronome(this)
 {
     setSize (1259, 682);
-    m_pParentConstrainer->setFixedAspectRatio(1259.0f / 682.0f);
     setAudioChannels(2, 2);
 
     juce::Rectangle<int> rect = getLocalBounds();
     m_mapComp.setSize(rect.getWidth() - rect.getWidth() * 0.1, rect.getHeight() - rect.getHeight() * 0.1);
+    m_mapComp.resized();
     m_mapComp.setCentrePosition(rect.getCentre());
     m_midiHandler.setMidiInput(&m_deviceManager);
     addAndMakeVisible(m_startBtton);
@@ -35,6 +34,7 @@ MainComponent::MainComponent(juce::ComponentBoundsConstrainer* pParentConstraine
     m_oscillator.setFrequency(440);
 
     m_loadThread = std::thread([&]() { m_data.readFile(); });
+    m_startBtton.setBounds(getLocalBounds());
 }
 
 MainComponent::~MainComponent()
@@ -46,16 +46,9 @@ MainComponent::~MainComponent()
 
 void MainComponent::paint (juce::Graphics& g)
 {
-    juce::Rectangle<int> windowRect = getLocalBounds();
-
-    // compute division only once
-    int halfWidth = windowRect.getWidth() / 2;
-    int halfHeight = windowRect.getHeight() / 2;
-
     // fill background
     g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
 
-    m_startBtton.setBounds(windowRect);
     m_startBtton.paintButton(g, false, false);
 }
 
@@ -124,7 +117,7 @@ void MainComponent::stepThroughData(time_t step)
     
     for (const StormDataItem &item : myVect)
     {
-        if (juce::Point<float>(item.longitude, item.latitude).getDistanceFrom(coords) < 40)
+        if (juce::Point<float>(item.longitude, item.latitude).getDistanceFrom(coords) < 3)
             count++;
     }
 

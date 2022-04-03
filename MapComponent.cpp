@@ -18,20 +18,17 @@ MapComponent::MapComponent(int w, int h) :
 
 void MapComponent::paint(juce::Graphics& g)
 {
-    juce::Rectangle<int> windowRect = getLocalBounds();
-
     // (Our component is opaque, so we must completely fill the background with a solid colour)
     g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
 
-    m_imageComp.setBounds(getLocalBounds());
     m_imageComp.paint(g);
-    setPos();
-    m_cursorComp.setBounds(getLocalBounds());
     m_cursorComp.paint(g);
 }
 
 void MapComponent::resized()
 {
+    m_imageComp.setBounds(getLocalBounds());
+    m_cursorComp.setBounds(getLocalBounds());
     m_imageComp.resized();
     m_cursorComp.resized();
 }

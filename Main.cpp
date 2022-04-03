@@ -65,7 +65,7 @@ public:
                               DocumentWindow::allButtons)
         {
             setUsingNativeTitleBar (true);
-            setContentOwned (new MainComponent(&m_constrainer), true);
+            setContentOwned (new MainComponent(), true);
 
            #if JUCE_IOS || JUCE_ANDROID
             setFullScreen (true);
@@ -74,7 +74,6 @@ public:
             centreWithSize (getWidth(), getHeight());
            #endif
 
-            setConstrainer(&m_constrainer);
             setVisible (true);
         }
 
@@ -94,7 +93,6 @@ public:
         */
 
     private:
-        juce::ComponentBoundsConstrainer m_constrainer;
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainWindow)
     };
 
