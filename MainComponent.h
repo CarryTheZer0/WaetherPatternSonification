@@ -10,14 +10,10 @@
 #include "StormData.h"
 #include "Metronome.h"
 
-/*
-    This component lives inside our window, and this is where you should put all
-    your controls and content.
-*/
 class MainComponent  : public juce::AudioAppComponent
 {
 public:
-    MainComponent();
+    MainComponent(juce::ComponentBoundsConstrainer* pParentConstrainer);
     ~MainComponent() override;
 
     void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override;
@@ -31,6 +27,8 @@ public:
     void stepThroughData(time_t step);
 
 private:
+    juce::ComponentBoundsConstrainer* m_pParentConstrainer;
+
     juce::AudioDeviceManager m_deviceManager;
     MidiHandler m_midiHandler;
     MapComponent m_mapComp;

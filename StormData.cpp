@@ -6,7 +6,8 @@ StormData::StormData(std::string filename, int year) :
 	m_lineCount(0),
 	m_endOfDataReached(false),
 	m_year(year),
-	m_currentTime(0)
+	m_currentTime(0),
+	m_stop(false)
 {
 	// get line count
 	io::LineReader reader(m_filename);
@@ -27,6 +28,9 @@ void StormData::readFile()
 
 	while (char* line = reader.next_line())
 	{
+		if (m_stop)
+			break;
+
 		StormDataItem item{};
 		
 		std::vector<std::string> output = to_vector(line);

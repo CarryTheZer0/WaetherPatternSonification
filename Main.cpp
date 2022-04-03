@@ -25,14 +25,14 @@ public:
     {
         // This method is where you should put your application's initialisation code..
 
-        mainWindow.reset (new MainWindow (getApplicationName()));
+        m_mainWindow.reset (new MainWindow (getApplicationName()));
     }
 
     void shutdown() override
     {
         // Add your application's shutdown code here..
 
-        mainWindow = nullptr; // (deletes our window)
+        m_mainWindow = nullptr; // (deletes our window)
     }
 
     //==============================================================================
@@ -65,15 +65,16 @@ public:
                               DocumentWindow::allButtons)
         {
             setUsingNativeTitleBar (true);
-            setContentOwned (new MainComponent(), true);
+            setContentOwned (new MainComponent(&m_constrainer), true);
 
            #if JUCE_IOS || JUCE_ANDROID
             setFullScreen (true);
            #else
-            setResizable (true, true);
+            setResizable (false, false);
             centreWithSize (getWidth(), getHeight());
            #endif
 
+            setConstrainer(&m_constrainer);
             setVisible (true);
         }
 
@@ -93,11 +94,12 @@ public:
         */
 
     private:
+        juce::ComponentBoundsConstrainer m_constrainer;
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainWindow)
     };
 
 private:
-    std::unique_ptr<MainWindow> mainWindow;
+    std::unique_ptr<MainWindow> m_mainWindow;
 };
 
 //==============================================================================

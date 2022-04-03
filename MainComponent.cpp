@@ -1,6 +1,7 @@
 #include "MainComponent.h"
 
-MainComponent::MainComponent() :
+MainComponent::MainComponent(juce::ComponentBoundsConstrainer* pParentConstrainer) :
+    m_pParentConstrainer(pParentConstrainer),
     m_midiHandler(this),
     m_mapComp(0, 0),
     m_data("Data\\StormEvents_details-ftp_v1.0_d2010_c20170726.csv", 2010),
@@ -8,7 +9,8 @@ MainComponent::MainComponent() :
     m_playingSound(false),
     m_metronome(this)
 {
-    setSize (600, 400);
+    setSize (1259, 682);
+    m_pParentConstrainer->setFixedAspectRatio(1259.0f / 682.0f);
     setAudioChannels(2, 2);
 
     juce::Rectangle<int> rect = getLocalBounds();
@@ -37,6 +39,8 @@ MainComponent::MainComponent() :
 
 MainComponent::~MainComponent()
 {
+    m_data.stop();
+    m_loadThread.join();
     shutdownAudio();
 }
 
@@ -113,7 +117,18 @@ void MainComponent::stepThroughData(time_t step)
     }
 
     std::vector<StormDataItem> myVect = m_data.stepThroughData(step);
-    if (myVect.size() > 0)
+
+    juce::Point<float> coords = m_mapComp.getCoords();
+
+    int count = 0;
+    
+    for (const StormDataItem &item : myVect)
+    {
+        if (juce::Point<float>(item.longitude, item.latitude).getDistanceFrom(coords) < 40)
+            count++;
+    }
+
+    if (count)
     {
         m_oscillator.reset();
         m_playingSound = true;
