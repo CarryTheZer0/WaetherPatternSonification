@@ -8,7 +8,7 @@ MidiHandler::MidiHandler(MainComponent* pOwner) :
 
 void MidiHandler::handleIncomingMidiMessage(juce::MidiInput* source, const juce::MidiMessage& message)
 {
-    postMessage(message, source->getName());
+    (new MidiCallback(m_pOwner, message, source->getName()))->post();
 }
 
 void MidiHandler::setMidiInput(juce::AudioDeviceManager* deviceManager)
@@ -21,9 +21,4 @@ void MidiHandler::setMidiInput(juce::AudioDeviceManager* deviceManager)
         deviceManager->setMidiInputDeviceEnabled(midiInput.identifier, true);
 
     deviceManager->addMidiInputDeviceCallback(midiInput.identifier, this);
-}
-
-void MidiHandler::postMessage(const juce::MidiMessage& message, const juce::String& source)
-{
-    (new MidiCallback(m_pOwner, message, source))->post();
 }

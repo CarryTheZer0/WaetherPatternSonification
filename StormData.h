@@ -11,12 +11,15 @@
 
 #include "StormDataItem.h"
 
-class StormData
+class StormData : public juce::Component
 {
 public:
 	StormData() = delete;
 	StormData(std::string filename, int year);
 	~StormData() = default;
+
+	void paint(juce::Graphics&) override;
+	void resized() override;
 
 	void readFile();
 
@@ -39,10 +42,13 @@ private:
 	std::string m_filename;
 	bool m_isLoaded;
 	int m_lineCount;
+	int m_currentLine;
 	bool m_endOfDataReached;
 	bool m_stop;
 	time_t m_currentTime;
 	int m_year;
+	double m_progress;
+	juce::ProgressBar m_progressBar;
 
 	std::map<time_t, StormDataItem> m_data;
 };

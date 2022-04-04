@@ -37,6 +37,7 @@ private:
     juce::dsp::Oscillator<float> m_oscillator;
     juce::dsp::Gain<float> m_mainGain;
     bool m_playingSound;
+    bool m_isMetronomeOn;
 
     std::thread m_loadThread;
 
