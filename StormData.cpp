@@ -7,7 +7,9 @@ StormData::StormData(std::string filename, int year) :
 	m_endOfDataReached(false),
 	m_year(year),
 	m_currentTime(0),
-	m_stop(false)
+	m_stop(false),
+	m_progress(0.0),
+	m_progressBar(m_progress)
 {
 	// get line count
 	io::LineReader reader(m_filename);
@@ -18,6 +20,28 @@ StormData::StormData(std::string filename, int year) :
 		m_lineCount++;
 
 	resetDate();
+
+	m_progressBar.setBounds(juce::Rectangle<int>(5, 5, 90,90));
+	addAndMakeVisible(m_progressBar);
+}
+
+void StormData::paint(juce::Graphics& g)
+{
+	// set draw colour
+	g.setColour(juce::Colour(100, 100, 100));
+
+	// fill background
+	juce::Rectangle<int> areaRect = getLocalBounds();
+
+	if (!m_isLoaded)
+		g.fillRoundedRectangle(areaRect.getX(), areaRect.getY(), areaRect.getWidth(), areaRect.getHeight(), 20);
+	else
+		setVisible(false);
+}
+
+void StormData::resized()
+{
+	m_progressBar.resized();
 }
 
 void StormData::readFile()
@@ -25,6 +49,7 @@ void StormData::readFile()
 	io::LineReader reader(m_filename);
 	// skip header
 	reader.next_line();
+	m_currentLine = 0;
 
 	while (char* line = reader.next_line())
 	{
@@ -56,12 +81,15 @@ void StormData::readFile()
 		catch (const std::exception)
 		{
 			// skip erroneous data - no need to throw the exception
+			m_currentLine++;
 			continue;
 		}
 
 		time_t testTime = std::mktime(&dateTime);
 
 		m_data.emplace(std::mktime(&dateTime), item);
+		m_currentLine++;
+		m_progress = (double)m_currentLine / (double)m_lineCount;
 	}
 
 	m_isLoaded = true;
@@ -149,11 +177,13 @@ std::vector<StormDataItem> StormData::stepThroughData(time_t step)
 
 	while (it != m_data.end() && it->first < m_currentTime)
 	{
-		if (it == m_data.end())
-			m_endOfDataReached = true;
 		outVect.push_back(it->second);
 		it++;
 	}
+
+	if (it == m_data.end())
+		resetDate();
+	//m_endOfDataReached = true;
 
 	return outVect;
 }

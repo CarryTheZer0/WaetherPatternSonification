@@ -13,8 +13,6 @@ public:
 	void handleIncomingMidiMessage(juce::MidiInput* source, const juce::MidiMessage &message) override;
 
 	void setMidiInput(juce::AudioDeviceManager* deviceManager);
-private:
-	void postMessage(const juce::MidiMessage& message, const juce::String& source);
 
 	MainComponent* m_pOwner;
 };

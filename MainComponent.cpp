@@ -16,19 +16,12 @@ MainComponent::MainComponent() :
     m_mapComp.resized();
     m_mapComp.setCentrePosition(rect.getCentre());
     m_midiHandler.setMidiInput(&m_deviceManager);
+    m_data.setBounds(rect.getCentreX() - 50, rect.getCentreY() - 50, 100, 100);
     addAndMakeVisible(m_startBtton);
     addAndMakeVisible(m_mapComp);
+    addAndMakeVisible(m_data);
 
-    m_startBtton.onClick = [&]()
-    {
-        if (m_data.getIsLoaded())
-        {
-            m_data.resetDate();
-
-            m_metronome.setStep(86400); // 1 day
-            m_metronome.startTimer(10); // every second
-        }
-    };
+    m_metronome.setStep(86400); // 1 day
 
     m_oscillator.initialise( [] (float x) { return std::sin(x); }, 128);
     m_oscillator.setFrequency(440);
@@ -93,10 +86,24 @@ void MainComponent::releaseResources()
 void MainComponent::processMessage(const juce::MidiMessage& m, juce::String& s)
 {
     juce::uint8 vel = m.getVelocity();
+
+    // move cursor
     if (m.getNoteNumber() == 35 && m.isNoteOn())
-        m_mapComp.addX(vel * 0.05f);
+        m_mapComp.addX(vel * 0.005f);
     else if (m.getNoteNumber() == 39 && m.isNoteOn())
-        m_mapComp.addX(-vel * 0.05f);
+        m_mapComp.addX(-vel * 0.005f);
+    
+    // start and stop playback
+    if (m.getNoteNumber() == 36 && m.isNoteOn() && m_data.getIsLoaded() && m_isMetronomeOn)
+    {
+        m_metronome.startTimer(10); // every 100th second
+        m_isMetronomeOn = true;
+    }
+    else if (m.getNoteNumber() == 36 && m.isNoteOn() && m_data.getIsLoaded() && !m_isMetronomeOn)
+    {
+        m_metronome.stopTimer();
+        m_isMetronomeOn = false;
+    }
 
     repaint();
 }
