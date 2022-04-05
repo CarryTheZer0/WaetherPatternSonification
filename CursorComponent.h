@@ -17,4 +17,5 @@ public:
     juce::Point<int> getPos() { return m_pos; }
 private:
     juce::Point<int> m_pos;
+    int m_radius;
 };
