@@ -83,26 +83,24 @@ void MainComponent::releaseResources()
 
 }
 
-void MainComponent::processMessage(const juce::MidiMessage& m, juce::String& s)
+void MainComponent::onMessage()
 {
-    juce::uint8 vel = m.getVelocity();
-
     // move cursor
-    if (m.getNoteNumber() == 35 && m.isNoteOn())
-        m_mapComp.addX(vel * 0.005f);
-    else if (m.getNoteNumber() == 39 && m.isNoteOn())
-        m_mapComp.addX(-vel * 0.005f);
+    m_mapComp.addX(m_midiHandler.getVelocity(35) * 0.005f);
+    m_mapComp.addX(m_midiHandler.getVelocity(39) * -0.005f);
     
     // start and stop playback
-    if (m.getNoteNumber() == 36 && m.isNoteOn() && m_data.getIsLoaded() && m_isMetronomeOn)
+    bool togglePressed = m_midiHandler.wasPressed(36);
+    if (togglePressed && m_data.getIsLoaded() && m_isMetronomeOn)
     {
         m_metronome.startTimer(10); // every 100th second
-        m_isMetronomeOn = true;
+        m_isMetronomeOn = false;
     }
-    else if (m.getNoteNumber() == 36 && m.isNoteOn() && m_data.getIsLoaded() && !m_isMetronomeOn)
+    else if (togglePressed && m_data.getIsLoaded() && !m_isMetronomeOn)
     {
         m_metronome.stopTimer();
-        m_isMetronomeOn = false;
+        m_playingSound = false;
+        m_isMetronomeOn = true;
     }
 
     repaint();

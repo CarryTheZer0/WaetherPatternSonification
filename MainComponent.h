@@ -22,7 +22,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
-    void processMessage(const juce::MidiMessage& m, juce::String& s);
+    void onMessage();
 
     void stepThroughData(time_t step);
 
