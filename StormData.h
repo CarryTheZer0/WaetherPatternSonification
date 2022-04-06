@@ -30,6 +30,7 @@ public:
 	bool getIsLoaded() { return m_isLoaded; }
 	bool getEndOfDataReached() { return m_endOfDataReached; }
 	void resetDate();
+	float getFrequency();
 
 	void stop() { m_stop = true; }
 

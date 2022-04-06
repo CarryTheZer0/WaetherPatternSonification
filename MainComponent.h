@@ -35,6 +35,7 @@ private:
 
     juce::TextButton m_startBtton;
     juce::dsp::Oscillator<float> m_oscillator;
+    juce::dsp::Oscillator<float> m_seasonOscillator;
     juce::dsp::Gain<float> m_mainGain;
     bool m_playingSound;
     bool m_isMetronomeOn;
