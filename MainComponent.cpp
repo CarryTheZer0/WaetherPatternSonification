@@ -23,8 +23,11 @@ MainComponent::MainComponent() :
 
     m_metronome.setStep(86400); // 1 day
 
-    m_oscillator.initialise( [] (float x) { return std::sin(x); }, 128);
+    m_oscillator.initialise( [] (float x) { return x < 0.0f ? 1.0f : -1.0f; }, 128);
     m_oscillator.setFrequency(440);
+
+    m_seasonOscillator.initialise([](float x) { return std::sin(x); }, 128);
+    m_seasonOscillator.setFrequency(440);
 
     m_loadThread = std::thread([&]() { m_data.readFile(); });
     m_startBtton.setBounds(getLocalBounds());
@@ -55,11 +58,12 @@ void MainComponent::resized()
 
 void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
 {
-    juce::dsp::ProcessSpec spec;
+    juce::dsp::ProcessSpec spec{};
     spec.maximumBlockSize = 100000;
     spec.sampleRate = 44100;
     spec.numChannels = 2;
     m_oscillator.prepare(spec);
+    m_seasonOscillator.prepare(spec);
     m_mainGain.prepare(spec);
     m_mainGain.setGainLinear(0.01f);
 }
@@ -73,9 +77,12 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
     {
         // fill buffer with oscillator samples
         m_oscillator.process(juce::dsp::ProcessContextReplacing<float>(audioBlock));
-        // adjust gain of the buffer
-        m_mainGain.process(juce::dsp::ProcessContextReplacing<float>(audioBlock));
     }
+    // fill buffer with oscillator samples
+    m_seasonOscillator.setFrequency(m_data.getFrequency());
+    m_seasonOscillator.process(juce::dsp::ProcessContextReplacing<float>(audioBlock));
+    // adjust gain of the buffer
+    m_mainGain.process(juce::dsp::ProcessContextReplacing<float>(audioBlock));
 }
 
 void MainComponent::releaseResources()

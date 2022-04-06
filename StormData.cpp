@@ -44,6 +44,24 @@ void StormData::resized()
 	m_progressBar.resized();
 }
 
+float StormData::getFrequency()
+{
+	time_t equinox = 6739200;
+	time_t yearInS = 31556952;
+	float pi = 3.14159f;
+
+	// convert time since the spring equinox to the range 0 - 2pi
+	float progress = (float)((m_currentTime - equinox) % yearInS) / (float)yearInS * pi * 2.0f;
+
+	// find the sine and shift into the range 0 - 1
+	float freq = (sin(progress) + 1) * 0.5f;
+
+	// Return a value in the range 220Hz - 440Hz
+	freq *= 220.0f;
+	freq += 220.0f;
+	return freq;
+}
+
 void StormData::readFile()
 {
 	io::LineReader reader(m_filename);
