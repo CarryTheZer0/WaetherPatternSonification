@@ -1,27 +1,45 @@
 #include "MainComponent.h"
 
+#include <string>
+
 MainComponent::MainComponent() :
     m_midiHandler(this),
     m_mapComp(0, 0),
     m_data("Data\\StormEvents_details-ftp_v1.0_d2010_c20170726.csv", 2010),
-    m_startBtton("Button"),
     m_playingSound(false),
     m_metronome(this),
     m_isMetronomeOn(false),
-    m_playbackSpeed(100.0f)
+    m_playbackSpeed(100.0f),
+    m_longLabel("Long", "Longitude: "),
+    m_latLabel("Lat", "Latitude: "),
+    m_title("Title", "Select a longitude then press enter: ")
 {
     setSize (1259, 682);
     setAudioChannels(2, 2);
 
     juce::Rectangle<int> rect = getLocalBounds();
-    m_mapComp.setSize(rect.getWidth() - rect.getWidth() * 0.1, rect.getHeight() - rect.getHeight() * 0.1);
+    m_mapComp.setSize(getWidth() - getWidth() * 0.2f, getHeight() - getHeight() * 0.2f);
     m_mapComp.resized();
     m_mapComp.setCentrePosition(rect.getCentre());
     m_midiHandler.setMidiInput(&m_deviceManager);
     m_data.setBounds(rect.getCentreX() - 50, rect.getCentreY() - 50, 100, 100);
-    addAndMakeVisible(m_startBtton);
     addAndMakeVisible(m_mapComp);
     addAndMakeVisible(m_data);
+    addAndMakeVisible(m_longLabel);
+    addAndMakeVisible(m_latLabel);
+    addAndMakeVisible(m_title);
+
+    m_longLabel.setBounds(rect.getCentreX() - 100, getHeight() * 0.94f, 200, getHeight() * 0.02f);
+    m_longLabel.setColour(juce::Label::textColourId, juce::Colours::cyan);
+    m_longLabel.setJustificationType(36); // centred
+
+    m_latLabel.setBounds(getWidth() * 0.04f, rect.getCentreY() + 100, 200, getWidth() * 0.02f);
+    m_latLabel.setColour(juce::Label::textColourId, juce::Colours::cyan);
+    m_latLabel.setTransform(juce::AffineTransform().rotation(4.71239f, getWidth() * 0.04f, rect.getCentreY() + 100)); // rotate 270 degrees
+    m_latLabel.setJustificationType(36); // centred
+
+    m_title.setBounds(getWidth() * 0.1f, 0.0f, getWidth() * 0.6f, getHeight() * 0.1f);
+    m_title.setColour(juce::Label::textColourId, juce::Colours::cyan);
 
     m_metronome.setStep(86400); // 1 day
 
@@ -30,12 +48,13 @@ MainComponent::MainComponent() :
     m_seasonOscillator.initialise( [] (float x) { return std::sin(x); }, 128);
 
     m_loadThread = std::thread([&]() { m_data.readFile(); });
-    m_startBtton.setBounds(getLocalBounds());
 }
 
 MainComponent::~MainComponent()
 {
+    // stop loading data to close thread correctly
     m_data.stop();
+    // wait for the thread to close
     m_loadThread.join();
     shutdownAudio();
 }
@@ -44,8 +63,6 @@ void MainComponent::paint (juce::Graphics& g)
 {
     // fill background
     g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
-
-    m_startBtton.paintButton(g, false, false);
 }
 
 void MainComponent::resized()
@@ -101,21 +118,24 @@ void MainComponent::onMessage()
     int decrease = m_midiHandler.getVelocity(35);
     switch (m_state)
     {
-        // Advance to latitude selection
+        // Adjust longitude
         case ControlState::LONGITUDE: 
             m_mapComp.addX(increase * 0.005f);
             m_mapComp.addX(decrease * -0.005f);
+            m_longLabel.setText("Longitude: " + std::to_string(m_mapComp.getCoords().getX()), juce::NotificationType::dontSendNotification);
             break;
-        // Advance to zoom selection
+        // Adjust latitiude
         case ControlState::LATITUDE:
             m_mapComp.addY(increase * 0.005f);
             m_mapComp.addY(decrease * -0.005f);
+            m_latLabel.setText("Latitude: " + std::to_string(m_mapComp.getCoords().getY()), juce::NotificationType::dontSendNotification);
             break;
-        // Advance to playback control
+        // Adjust zoom
         case ControlState::ZOOM:
             m_mapComp.addZoom(increase * 0.002f);
             m_mapComp.addZoom(decrease * -0.002f);
             break;
+        // Control playback
         case ControlState::PLAYBACK:
             m_playbackSpeed -= increase * 0.02f;
             m_playbackSpeed += decrease * 0.02f;
@@ -130,13 +150,20 @@ void MainComponent::onMessage()
         switch (m_state)
         {
             // Advance to latitude selection
-            case ControlState::LONGITUDE: m_state = ControlState::LATITUDE; break;
+            case ControlState::LONGITUDE: 
+                m_state = ControlState::LATITUDE;
+                m_title.setText("Select a latitude then press enter: ", juce::NotificationType::dontSendNotification);
+                break;
             // Advance to zoom selection
-            case ControlState::LATITUDE: m_state = ControlState::ZOOM; break;
+            case ControlState::LATITUDE: 
+                m_state = ControlState::ZOOM;
+                m_title.setText("Select a zoom level then press enter: ", juce::NotificationType::dontSendNotification);
+                break;
             // Advance to playback control, start playback
             case ControlState::ZOOM: 
                 m_state = ControlState::PLAYBACK; 
                 togglePlayback();
+                m_title.setText("Press enter to play/pause, adjust the playback speed: ", juce::NotificationType::dontSendNotification);
                 break;
             // Play/Pause until reset is pressed
             case ControlState::PLAYBACK: togglePlayback(); break;
@@ -149,6 +176,7 @@ void MainComponent::onMessage()
         m_playingSound = false;
         m_isMetronomeOn = false;
         m_state = ControlState::LONGITUDE;
+        m_title.setText("Select a longitude then press enter: ", juce::NotificationType::dontSendNotification);
     }
 
     repaint();
