@@ -34,7 +34,11 @@ private:
     StormData m_data;
     Metronome m_metronome;
 
-    juce::TextButton m_startBtton;
+    juce::Label m_longLabel;
+    juce::Label m_latLabel;
+
+    juce::Label m_title;
+
     juce::dsp::Oscillator<float> m_oscillator;
     juce::dsp::Oscillator<float> m_seasonOscillator;
     juce::dsp::Gain<float> m_mainGain;
