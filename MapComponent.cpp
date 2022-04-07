@@ -5,7 +5,8 @@ MapComponent::MapComponent(int w, int h) :
     m_imageComp("MapImage"),
     m_cursorComp(w, h),
     m_coords(-95.0f, 37.0f),
-    m_coordBounds(-126.067436f, 49.655963f, -126.067436f - -65.888768f, 49.655963f - 24.108747f)
+    m_zoom(3.0f),
+    m_coordBounds(-126.067436f, 49.655963f, 126.067436f - 65.888768f, 49.655963f - 24.108747f)
 {
     setSize(w, h);
     juce::File file = juce::File::getCurrentWorkingDirectory().getChildFile("USMap.PNG");
@@ -36,7 +37,9 @@ void MapComponent::resized()
 void MapComponent::setPos()
 {
     juce::Point<int> pos = coordsToPixels(m_coords);
+    int radius = degreesToPixels(m_zoom);
     m_cursorComp.setPos(pos.x, pos.y);
+    m_cursorComp.setZoom(radius);
 }
 
 void MapComponent::addX(float val)
@@ -51,11 +54,22 @@ void MapComponent::addY(float val)
     setPos();
 }
 
+void MapComponent::addZoom(float val)
+{
+    m_zoom += val;
+    setPos();
+}
+
 juce::Point<int> MapComponent::coordsToPixels(juce::Point<float> coords)
 {
     float xPercent = (coords.x - m_coordBounds.getX()) / m_coordBounds.getWidth();
     int xPix = xPercent * getLocalBounds().getWidth();
     float yPercent = (coords.y - m_coordBounds.getY()) / m_coordBounds.getHeight();
     int yPix = yPercent * getLocalBounds().getHeight();
-    return juce::Point<int>(-xPix, -yPix);
+    return juce::Point<int>(xPix, -yPix);
+}
+
+float MapComponent::degreesToPixels(float degrees)
+{
+    return getWidth() / (m_coordBounds.getWidth() / degrees);
 }

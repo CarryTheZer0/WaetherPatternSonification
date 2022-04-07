@@ -50,3 +50,9 @@ void CursorComponent::setPos(int x, int y)
     m_pos.y = y;
     repaint();
 }
+
+void CursorComponent::setZoom(int radius)
+{
+    m_radius = radius;
+    repaint();
+}

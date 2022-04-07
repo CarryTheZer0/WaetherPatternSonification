@@ -13,6 +13,7 @@ public:
     void resized() override;
 
     void setPos(int x, int y);
+    void setZoom(int radius);
 
     juce::Point<int> getPos() { return m_pos; }
 private:

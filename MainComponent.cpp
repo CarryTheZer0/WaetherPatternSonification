@@ -6,7 +6,9 @@ MainComponent::MainComponent() :
     m_data("Data\\StormEvents_details-ftp_v1.0_d2010_c20170726.csv", 2010),
     m_startBtton("Button"),
     m_playingSound(false),
-    m_metronome(this)
+    m_metronome(this),
+    m_isMetronomeOn(false),
+    m_playbackSpeed(100.0f)
 {
     setSize (1259, 682);
     setAudioChannels(2, 2);
@@ -24,10 +26,8 @@ MainComponent::MainComponent() :
     m_metronome.setStep(86400); // 1 day
 
     m_oscillator.initialise( [] (float x) { return x < 0.0f ? 1.0f : -1.0f; }, 128);
-    m_oscillator.setFrequency(440);
 
-    m_seasonOscillator.initialise([](float x) { return std::sin(x); }, 128);
-    m_seasonOscillator.setFrequency(440);
+    m_seasonOscillator.initialise( [] (float x) { return std::sin(x); }, 128);
 
     m_loadThread = std::thread([&]() { m_data.readFile(); });
     m_startBtton.setBounds(getLocalBounds());
@@ -63,7 +63,9 @@ void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate
     spec.sampleRate = 44100;
     spec.numChannels = 2;
     m_oscillator.prepare(spec);
+    m_oscillator.setFrequency(440);
     m_seasonOscillator.prepare(spec);
+    m_seasonOscillator.setFrequency(440);
     m_mainGain.prepare(spec);
     m_mainGain.setGainLinear(0.01f);
 }
@@ -73,14 +75,16 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
     bufferToFill.clearActiveBufferRegion();
 
     juce::dsp::AudioBlock<float> audioBlock = juce::dsp::AudioBlock<float>(*bufferToFill.buffer);
-    if (m_playingSound)
-    {
+    if (m_isMetronomeOn) {
+        if (m_playingSound)
+        {
+            // fill buffer with oscillator samples
+            m_oscillator.process(juce::dsp::ProcessContextReplacing<float>(audioBlock));
+        }
         // fill buffer with oscillator samples
-        m_oscillator.process(juce::dsp::ProcessContextReplacing<float>(audioBlock));
+        m_seasonOscillator.setFrequency(m_data.getFrequency());
+        m_seasonOscillator.process(juce::dsp::ProcessContextReplacing<float>(audioBlock));
     }
-    // fill buffer with oscillator samples
-    m_seasonOscillator.setFrequency(m_data.getFrequency());
-    m_seasonOscillator.process(juce::dsp::ProcessContextReplacing<float>(audioBlock));
     // adjust gain of the buffer
     m_mainGain.process(juce::dsp::ProcessContextReplacing<float>(audioBlock));
 }
@@ -93,24 +97,76 @@ void MainComponent::releaseResources()
 void MainComponent::onMessage()
 {
     // move cursor
-    m_mapComp.addX(m_midiHandler.getVelocity(35) * 0.005f);
-    m_mapComp.addX(m_midiHandler.getVelocity(39) * -0.005f);
-    
-    // start and stop playback
-    bool togglePressed = m_midiHandler.wasPressed(36);
-    if (togglePressed && m_data.getIsLoaded() && m_isMetronomeOn)
+    int increase = m_midiHandler.getVelocity(36);
+    int decrease = m_midiHandler.getVelocity(35);
+    switch (m_state)
     {
-        m_metronome.startTimer(10); // every 100th second
-        m_isMetronomeOn = false;
+        // Advance to latitude selection
+        case ControlState::LONGITUDE: 
+            m_mapComp.addX(increase * 0.005f);
+            m_mapComp.addX(decrease * -0.005f);
+            break;
+        // Advance to zoom selection
+        case ControlState::LATITUDE:
+            m_mapComp.addY(increase * 0.005f);
+            m_mapComp.addY(decrease * -0.005f);
+            break;
+        // Advance to playback control
+        case ControlState::ZOOM:
+            m_mapComp.addZoom(increase * 0.002f);
+            m_mapComp.addZoom(decrease * -0.002f);
+            break;
+        case ControlState::PLAYBACK:
+            m_playbackSpeed -= increase * 0.02f;
+            m_playbackSpeed += decrease * 0.02f;
+            m_metronome.stopTimer();
+            m_metronome.startTimer(m_playbackSpeed);
+            break;
     }
-    else if (togglePressed && m_data.getIsLoaded() && !m_isMetronomeOn)
+    
+    // on enter pressed - advance selection stage
+    if (m_midiHandler.wasPressed(37))
+    {
+        switch (m_state)
+        {
+            // Advance to latitude selection
+            case ControlState::LONGITUDE: m_state = ControlState::LATITUDE; break;
+            // Advance to zoom selection
+            case ControlState::LATITUDE: m_state = ControlState::ZOOM; break;
+            // Advance to playback control, start playback
+            case ControlState::ZOOM: 
+                m_state = ControlState::PLAYBACK; 
+                togglePlayback();
+                break;
+            // Play/Pause until reset is pressed
+            case ControlState::PLAYBACK: togglePlayback(); break;
+        }
+    }
+
+    if (m_midiHandler.wasPressed(38))
     {
         m_metronome.stopTimer();
         m_playingSound = false;
-        m_isMetronomeOn = true;
+        m_isMetronomeOn = false;
+        m_state = ControlState::LONGITUDE;
     }
 
     repaint();
+}
+
+void MainComponent::togglePlayback()
+{
+    if (m_data.getIsLoaded() && !m_isMetronomeOn)
+    {
+        m_metronome.startTimer(m_playbackSpeed);
+        m_isMetronomeOn = true;
+    }
+    else if (m_data.getIsLoaded() && m_isMetronomeOn)
+    {
+        m_metronome.stopTimer();
+        m_playingSound = false;
+        m_isMetronomeOn = false;
+    }
 }
 
 void MainComponent::stepThroughData(time_t step)
@@ -129,7 +185,7 @@ void MainComponent::stepThroughData(time_t step)
     
     for (const StormDataItem &item : myVect)
     {
-        if (juce::Point<float>(item.longitude, item.latitude).getDistanceFrom(coords) < 3)
+        if (juce::Point<float>(item.longitude, item.latitude).getDistanceFrom(coords) < m_mapComp.getZoom())
             count++;
     }
 

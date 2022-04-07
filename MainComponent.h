@@ -23,6 +23,7 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void onMessage();
+    void togglePlayback();
 
     void stepThroughData(time_t step);
 
@@ -37,11 +38,17 @@ private:
     juce::dsp::Oscillator<float> m_oscillator;
     juce::dsp::Oscillator<float> m_seasonOscillator;
     juce::dsp::Gain<float> m_mainGain;
+    float m_playbackSpeed;
     bool m_playingSound;
     bool m_isMetronomeOn;
 
     std::thread m_loadThread;
 
+    enum class ControlState {
+        LONGITUDE, LATITUDE, ZOOM, PLAYBACK
+    };
+
+    ControlState m_state = ControlState::LONGITUDE;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
