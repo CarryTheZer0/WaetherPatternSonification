@@ -3,7 +3,7 @@
 #include <numbers>
 
 CursorComponent::CursorComponent(int w, int h) :
-    m_pos(0, 0),
+    m_pos(w / 2.0f, h / 2.0f),
     m_radius(50)
 {
     setSize(w, h);

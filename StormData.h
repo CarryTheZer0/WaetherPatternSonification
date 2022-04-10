@@ -28,7 +28,6 @@ public:
 	int getMin(std::string timeOfDay);
 
 	bool getIsLoaded() { return m_isLoaded; }
-	bool getEndOfDataReached() { return m_endOfDataReached; }
 	void resetDate();
 	float getFrequency();
 
@@ -44,7 +43,6 @@ private:
 	bool m_isLoaded;
 	int m_lineCount;
 	int m_currentLine;
-	bool m_endOfDataReached;
 	bool m_stop;
 	time_t m_currentTime;
 	int m_year;

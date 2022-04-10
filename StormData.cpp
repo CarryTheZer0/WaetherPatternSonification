@@ -4,7 +4,6 @@ StormData::StormData(std::string filename, int year) :
 	m_filename(filename),
 	m_isLoaded(false),
 	m_lineCount(0),
-	m_endOfDataReached(false),
 	m_year(year),
 	m_currentTime(0),
 	m_stop(false),

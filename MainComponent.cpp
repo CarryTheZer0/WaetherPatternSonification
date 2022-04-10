@@ -5,48 +5,62 @@
 MainComponent::MainComponent() :
     m_midiHandler(this),
     m_mapComp(0, 0),
-    m_data("Data\\StormEvents_details-ftp_v1.0_d2010_c20170726.csv", 2010),
-    m_playingSound(false),
+    m_data("Resources\\StormEvents_details-ftp_v1.0_d2010_c20170726.csv", 2010),
     m_metronome(this),
-    m_isMetronomeOn(false),
-    m_playbackSpeed(100.0f),
     m_longLabel("Long", "Longitude: "),
     m_latLabel("Lat", "Latitude: "),
-    m_title("Title", "Select a longitude then press enter: ")
+    m_title("Title", "Select a longitude then press enter: "),
+    m_state(ControlState::LONGITUDE),
+    m_playingSound(false),
+    m_isMetronomeOn(false),
+    m_playbackSpeed(100.0f)
 {
-    setSize (1259, 682);
+    setSize(1259, 682);
     setAudioChannels(2, 2);
-
     juce::Rectangle<int> rect = getLocalBounds();
-    m_mapComp.setSize(getWidth() - getWidth() * 0.2f, getHeight() - getHeight() * 0.2f);
-    m_mapComp.resized();
-    m_mapComp.setCentrePosition(rect.getCentre());
+    
+    // MidiHandler instance to handle MIDI input
     m_midiHandler.setMidiInput(&m_deviceManager);
-    m_data.setBounds(rect.getCentreX() - 50, rect.getCentreY() - 50, 100, 100);
-    addAndMakeVisible(m_mapComp);
-    addAndMakeVisible(m_data);
-    addAndMakeVisible(m_longLabel);
-    addAndMakeVisible(m_latLabel);
-    addAndMakeVisible(m_title);
 
+    // set map size and position
+    m_mapComp.setSize(getWidth() - getWidth() * 0.2f, getHeight() - getHeight() * 0.2f);
+    m_mapComp.setCentrePosition(rect.getCentre());
+    m_mapComp.resized();
+    addAndMakeVisible(m_mapComp);
+
+    // set data load progress bar bounds
+    m_data.setBounds(rect.getCentreX() - 50, rect.getCentreY() - 50, 100, 100);
+    addAndMakeVisible(m_data);
+
+    // set longitude axis label
     m_longLabel.setBounds(rect.getCentreX() - 100, getHeight() * 0.94f, 200, getHeight() * 0.02f);
     m_longLabel.setColour(juce::Label::textColourId, juce::Colours::cyan);
-    m_longLabel.setJustificationType(36); // centred
+    m_longLabel.setJustificationType(36); // 36 = centred
+    addAndMakeVisible(m_longLabel);
 
+    // set latitude axis label
     m_latLabel.setBounds(getWidth() * 0.04f, rect.getCentreY() + 100, 200, getWidth() * 0.02f);
     m_latLabel.setColour(juce::Label::textColourId, juce::Colours::cyan);
     m_latLabel.setTransform(juce::AffineTransform().rotation(4.71239f, getWidth() * 0.04f, rect.getCentreY() + 100)); // rotate 270 degrees
-    m_latLabel.setJustificationType(36); // centred
+    m_latLabel.setJustificationType(36); // 36 = centred
+    addAndMakeVisible(m_latLabel);
 
+    // set title
     m_title.setBounds(getWidth() * 0.1f, 0.0f, getWidth() * 0.6f, getHeight() * 0.1f);
     m_title.setColour(juce::Label::textColourId, juce::Colours::cyan);
+    addAndMakeVisible(m_title);
 
-    m_metronome.setStep(86400); // 1 day
+    // initialise metronome step size
+    m_metronome.setStep(86400); // 86400 seconds = 1 day
 
+    // initisialise storm data oscillator with a square wave
     m_oscillator.initialise( [] (float x) { return x < 0.0f ? 1.0f : -1.0f; }, 128);
 
+    // initisialise time of year oscillator with a sine wave
     m_seasonOscillator.initialise( [] (float x) { return std::sin(x); }, 128);
 
+    // load data in a separate thread
+    // this allows the UI to function while data loads in the background
     m_loadThread = std::thread([&]() { m_data.readFile(); });
 }
 
@@ -59,36 +73,37 @@ MainComponent::~MainComponent()
     shutdownAudio();
 }
 
-void MainComponent::paint (juce::Graphics& g)
-{
-    // fill background
-    g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
-}
-
-void MainComponent::resized()
-{
-    juce::Rectangle<int> rect = getLocalBounds();
-    m_mapComp.setSize(rect.getWidth() - rect.getWidth() * 0.1, rect.getHeight() - rect.getHeight() * 0.1);
-    m_mapComp.setCentrePosition(rect.getCentre());
-    m_mapComp.resized();
-}
-
+/**
+ *   prepareToPlay
+ *   called by JUCE::AudioAppComponent base class - prepares sound resources
+ */
 void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
 {
+    // initialise spec
     juce::dsp::ProcessSpec spec{};
-    spec.maximumBlockSize = 100000;
+    spec.maximumBlockSize = 10000;
     spec.sampleRate = 44100;
     spec.numChannels = 2;
+
+    // prepare oscillators
     m_oscillator.prepare(spec);
-    m_oscillator.setFrequency(440);
+    m_oscillator.setFrequency(440);  // m_oscillator plays at 440Hz
     m_seasonOscillator.prepare(spec);
-    m_seasonOscillator.setFrequency(440);
+    m_seasonOscillator.setFrequency(440);  // m_seasonOscillator's frequency is changed over time later in the code
+
+    // prepare gain control
     m_mainGain.prepare(spec);
-    m_mainGain.setGainLinear(0.01f);
+    m_mainGain.setGainLinear(0.01f);  // adjusts gain to set output at a reasonable volume
 }
 
+
+/**
+ *   getNextAudioBlock
+ *   called by JUCE::AudioAppComponent base class - called repeatedly to fetch blocks of audio data
+ */
 void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill)
 {
+    // clear old data from the active buffer region
     bufferToFill.clearActiveBufferRegion();
 
     juce::dsp::AudioBlock<float> audioBlock = juce::dsp::AudioBlock<float>(*bufferToFill.buffer);
@@ -98,71 +113,99 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
             // fill buffer with oscillator samples
             m_oscillator.process(juce::dsp::ProcessContextReplacing<float>(audioBlock));
         }
-        // fill buffer with oscillator samples
+        // set new frequency
         m_seasonOscillator.setFrequency(m_data.getFrequency());
+        // fill buffer with oscillator samples
         m_seasonOscillator.process(juce::dsp::ProcessContextReplacing<float>(audioBlock));
     }
     // adjust gain of the buffer
     m_mainGain.process(juce::dsp::ProcessContextReplacing<float>(audioBlock));
 }
 
-void MainComponent::releaseResources()
+/**
+ *   paint
+ *   called by JUCE::Component base class - draws the UI
+ */
+void MainComponent::paint(juce::Graphics& g)
 {
-
+    // fill background
+    g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
 }
 
+/**
+ *   resized
+ *   called by JUCE::Component base class - called when the window is resized
+ *   note while this is implemented it is never called due to restrictions on resizing the main window
+ */
+void MainComponent::resized()
+{
+    // resize child components
+    m_mapComp.setSize(getWidth() - getWidth() * 0.1, getHeight() - getHeight() * 0.1);
+    m_mapComp.setCentrePosition(getLocalBounds().getCentre());
+    m_mapComp.resized();
+}
+
+/**
+ *   onMessage
+ *   processes incoming messages from the midiHandler class 
+ */
 void MainComponent::onMessage()
 {
     // move cursor
-    int increase = m_midiHandler.getVelocity(36);
-    int decrease = m_midiHandler.getVelocity(35);
+    int increase = m_midiHandler.getVelocity(40);
+    // switch statement to change the function of the potentiometer
     switch (m_state)
     {
         // Adjust longitude
         case ControlState::LONGITUDE: 
-            m_mapComp.addX(increase * 0.005f);
-            m_mapComp.addX(decrease * -0.005f);
+            m_mapComp.setX(increase);
+            // display new longitude to UI
             m_longLabel.setText("Longitude: " + std::to_string(m_mapComp.getCoords().getX()), juce::NotificationType::dontSendNotification);
             break;
         // Adjust latitiude
         case ControlState::LATITUDE:
-            m_mapComp.addY(increase * 0.005f);
-            m_mapComp.addY(decrease * -0.005f);
+            m_mapComp.setY(increase);
+            // display new latitude to UI
             m_latLabel.setText("Latitude: " + std::to_string(m_mapComp.getCoords().getY()), juce::NotificationType::dontSendNotification);
             break;
         // Adjust zoom
         case ControlState::ZOOM:
-            m_mapComp.addZoom(increase * 0.002f);
-            m_mapComp.addZoom(decrease * -0.002f);
+            m_mapComp.setZoom(increase);
             break;
         // Control playback
         case ControlState::PLAYBACK:
-            m_playbackSpeed -= increase * 0.02f;
-            m_playbackSpeed += decrease * 0.02f;
+            float min = 1;
+            float range = 50;
+
+            m_playbackSpeed = (increase / 127.0f) * range + min;
+
             m_metronome.stopTimer();
             m_metronome.startTimer(m_playbackSpeed);
             break;
     }
     
     // on enter pressed - advance selection stage
-    if (m_midiHandler.wasPressed(37))
+    if (m_midiHandler.wasPressed(36))
     {
         switch (m_state)
         {
             // Advance to latitude selection
             case ControlState::LONGITUDE: 
                 m_state = ControlState::LATITUDE;
+                // update title text
                 m_title.setText("Select a latitude then press enter: ", juce::NotificationType::dontSendNotification);
                 break;
             // Advance to zoom selection
             case ControlState::LATITUDE: 
                 m_state = ControlState::ZOOM;
+                // update title text
                 m_title.setText("Select a zoom level then press enter: ", juce::NotificationType::dontSendNotification);
                 break;
             // Advance to playback control, start playback
             case ControlState::ZOOM: 
                 m_state = ControlState::PLAYBACK; 
                 togglePlayback();
+                // update title text
                 m_title.setText("Press enter to play/pause, adjust the playback speed: ", juce::NotificationType::dontSendNotification);
                 break;
             // Play/Pause until reset is pressed
@@ -170,20 +213,30 @@ void MainComponent::onMessage()
         }
     }
 
-    if (m_midiHandler.wasPressed(38))
+    // on reset pressed
+    if (m_midiHandler.wasPressed(37))
     {
+        // reset sound output
         m_metronome.stopTimer();
         m_playingSound = false;
         m_isMetronomeOn = false;
+
+        // reset control loop
         m_state = ControlState::LONGITUDE;
         m_title.setText("Select a longitude then press enter: ", juce::NotificationType::dontSendNotification);
     }
 
+    // signal to update the UI
     repaint();
 }
 
+/**
+ *   togglePlayback
+ *   toggles the metronome
+ */
 void MainComponent::togglePlayback()
 {
+    // toggle the metronome
     if (m_data.getIsLoaded() && !m_isMetronomeOn)
     {
         m_metronome.startTimer(m_playbackSpeed);
@@ -197,26 +250,27 @@ void MainComponent::togglePlayback()
     }
 }
 
+/**
+ *   stepThroughData
+ *   gets data for the current step and adjusts the sound output accordingly
+ */
 void MainComponent::stepThroughData(time_t step)
 {
-    if (m_data.getEndOfDataReached())
-    {
-        m_metronome.stopTimer();
-        return;
-    }
-
+    // get data for this step
     std::vector<StormDataItem> myVect = m_data.stepThroughData(step);
 
+    // get current cursor coords
     juce::Point<float> coords = m_mapComp.getCoords();
 
+    // count the total number of data points
     int count = 0;
-    
     for (const StormDataItem &item : myVect)
     {
         if (juce::Point<float>(item.longitude, item.latitude).getDistanceFrom(coords) < m_mapComp.getZoom())
             count++;
     }
 
+    // if data is present, play sound
     if (count)
     {
         m_oscillator.reset();
