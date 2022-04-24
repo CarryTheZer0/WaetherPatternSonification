@@ -20,10 +20,15 @@ StormData::StormData(std::string filename, int year) :
 
 	resetDate();
 
+	// initialise progress bar
 	m_progressBar.setBounds(juce::Rectangle<int>(5, 5, 90,90));
 	addAndMakeVisible(m_progressBar);
 }
 
+/**
+ *   paint
+ *   called by JUCE::Component base class - draws the UI
+ */
 void StormData::paint(juce::Graphics& g)
 {
 	// set draw colour
@@ -31,18 +36,26 @@ void StormData::paint(juce::Graphics& g)
 
 	// fill background
 	juce::Rectangle<int> areaRect = getLocalBounds();
-
-	if (!m_isLoaded)
+	if (!m_isLoaded) // only draw while loading is taking place
 		g.fillRoundedRectangle(areaRect.getX(), areaRect.getY(), areaRect.getWidth(), areaRect.getHeight(), 20);
 	else
 		setVisible(false);
 }
 
+/**
+ *   resized
+ *   called by JUCE::Component base class - called when the window is resized
+ */
 void StormData::resized()
 {
 	m_progressBar.resized();
 }
 
+/**
+ *   getFrequency
+ *   returns a frequency corresponding to time of year where the summer solstace is 
+ *   high and the winter solstace is low
+ */
 float StormData::getFrequency()
 {
 	time_t equinox = 6739200;
@@ -61,6 +74,10 @@ float StormData::getFrequency()
 	return freq;
 }
 
+/**
+ *   readFile
+ *   Reads data from the csv file and stores relevent information
+ */
 void StormData::readFile()
 {
 	io::LineReader reader(m_filename);
@@ -68,15 +85,18 @@ void StormData::readFile()
 	reader.next_line();
 	m_currentLine = 0;
 
+	// loop through file
 	while (char* line = reader.next_line())
 	{
-		if (m_stop)
+		if (m_stop) // check abort flag
 			break;
 
+		// initialise datum
 		StormDataItem item{};
-		
-		std::vector<std::string> output = to_vector(line);
 		std::tm dateTime{};
+
+		// read data
+		std::vector<std::string> output = toVector(line);
 
 		// try catch block to catch invalid data entry i.e blank longitude and latitude
 		try {
@@ -87,13 +107,18 @@ void StormData::readFile()
 			dateTime.tm_hour = getHour(output[2]);
 			dateTime.tm_min = getMin(output[2]);
 
+			// set injury data
+			int injuries = getPositionDataPoint(output[20]) + getPositionDataPoint(output[21]);
+			int deaths = getPositionDataPoint(output[22]) + getPositionDataPoint(output[23]);;
 			// set location data
 			item.longitude = getPositionDataPoint(output[45]);
 			item.latitude = getPositionDataPoint(output[44]);
 			// set time data
 			item.dateTime = dateTime;
-			// set severity TODO not yet added
+			// set severity
 			item.severity = 1;
+			if (injuries > 0) item.severity = 2;
+			if (deaths > 0) item.severity = 3;
 		}
 		catch (const std::exception)
 		{
@@ -102,10 +127,10 @@ void StormData::readFile()
 			continue;
 		}
 
-		time_t testTime = std::mktime(&dateTime);
-
+		// add data to map
 		m_data.emplace(std::mktime(&dateTime), item);
 		m_currentLine++;
+		// update progress bar
 		m_progress = (double)m_currentLine / (double)m_lineCount;
 	}
 
@@ -113,6 +138,10 @@ void StormData::readFile()
 	return;
 }
  
+/**
+ *   getMonth
+ *   Reads month data, converting from string to int
+ */
 int StormData::getMonth(std::string yearMonth)
 {
 	// get last two characters where format = YYYYMM
@@ -123,6 +152,10 @@ int StormData::getMonth(std::string yearMonth)
 	return std::stoi(mon);
 }
 
+/**
+ *   getHour
+ *   Reads hour data, converting from string to int
+ */
 int StormData::getHour(std::string timeOfDay)
 {
 	// get first two characters where format = HHMM
@@ -133,6 +166,10 @@ int StormData::getHour(std::string timeOfDay)
 	return std::stoi(hour);
 }
 
+/**
+ *   getMin
+ *   Reads minute data, converting from string to int
+ */
 int StormData::getMin(std::string timeOfDay)
 {
 	// get last two characters where format = HHMM
@@ -143,41 +180,58 @@ int StormData::getMin(std::string timeOfDay)
 	return std::stoi(min);
 }
 
+/**
+ *   getPositioDataPoint
+ *   Reads position data - this is stored in the csv file with quote marks that must be removed i.e. "2" -> 2
+ */
 float StormData::getPositionDataPoint(std::string dataPoint)
 {
 	std::string output;
+	// append escape character
 	dataPoint += '\n';
 	
+	// read each char
 	int index = 0;
 	while (dataPoint[index] != '\n')
 	{
+		// ignore quote marks
 		if (dataPoint[index] == '\"')
 		{
 			index++;
 			continue;
 		}
+		// read other chars to output
 		output += dataPoint[index];
 		index++;
 	}
 
+	// convert to float
 	return std::stof(output);
 }
 
-std::vector<std::string> StormData::to_vector(char* line)
+/**
+ *   toVector
+ *   converts single string of csv data to a vector
+ */
+std::vector<std::string> StormData::toVector(char* line)
 {
 	std::vector<std::string> vect;
 
 	int index = 0;
-	std::string current = "";
+	std::string current = "";  // string 'current' stores data as the line is read
+	// loop through line
 	while (line[index] != '\n')
 	{
+		// upon finding a comma add data to the vector
 		if (line[index] == ',')
 		{
 			vect.push_back(current);
+			// reset 'current' to empty string
 			current = "";
 			index++;
 			continue;
 		}
+		// add char to 'current'
 		current += line[index];
 		index++;
 	}
@@ -185,26 +239,37 @@ std::vector<std::string> StormData::to_vector(char* line)
 	return vect;
 }
 
+/**
+ *   stepThroughData
+ *   Finds relevent data for one step (one day)
+ */
 std::vector<StormDataItem> StormData::stepThroughData(time_t step)
 {
 	std::vector<StormDataItem> outVect;
+	// initialise iterator at the current time
 	auto it = m_data.lower_bound(m_currentTime);
 
+	// add one day to the current time
 	m_currentTime += step;
 
+	// add data points to the output until the iterator passes the new current time value
 	while (it != m_data.end() && it->first < m_currentTime)
 	{
 		outVect.push_back(it->second);
 		it++;
 	}
 
+	// loop the year when the end is reached
 	if (it == m_data.end())
 		resetDate();
-	//m_endOfDataReached = true;
 
 	return outVect;
 }
 
+/**
+ *   resetDate
+ *   set date back to 1st January
+ */
 void StormData::resetDate()
 {
 	// set start time

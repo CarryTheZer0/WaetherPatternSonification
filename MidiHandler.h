@@ -4,8 +4,13 @@
 
 #include <map>
 
+// Forward declare when only a referece is stored.
 class MainComponent;
 
+/**
+ *   class MidiHandler
+ *   Handles incoming MIDI messages
+ */
 class MidiHandler : public juce::MidiInputCallback, public juce::Component
 {
 public:
@@ -15,13 +20,13 @@ public:
 	void handleIncomingMidiMessage(juce::MidiInput* source, const juce::MidiMessage &message) override;
 	void setMidiInput(juce::AudioDeviceManager* deviceManager);
 
-	void processMessage(const juce::MidiMessage& m, juce::String& s);
+	void processMessage(const juce::MidiMessage& m);
 
 	bool wasPressed(int noteNo);
 	juce::uint8 getVelocity(int noteNo) { return m_velocities[noteNo]; }
 private:
-	MainComponent* m_pOwner;
+	MainComponent* m_pOwner; // refernce to the parent component
 
-	std::map<int, juce::uint8> m_velocities;
-	std::map<int, bool> m_pressed;
+	std::map<int, juce::uint8> m_velocities; // map of MIDI message velocities
+	std::map<int, bool> m_pressed;			 // map of MIDI messages (true when pressed)
 };

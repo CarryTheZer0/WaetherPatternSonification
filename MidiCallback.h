@@ -3,17 +3,20 @@
 
 #pragma once
 
+/**
+ *   class MidiCallback
+ *   callback message added to the JUCE backend's message queue
+ */
 class MidiCallback : public juce::CallbackMessage
 {
 public:
-    MidiCallback(MidiHandler* o, const juce::MidiMessage& m, const juce::String& s)
-        : m_owner(o), m_message(m), m_source(s)
+    MidiCallback(MidiHandler* o, const juce::MidiMessage& m)
+        : m_pOwner(o), m_message(m)
     {}
 
     void messageCallback() override;
 
 private:
-    juce::Component::SafePointer<MidiHandler> m_owner;
-    juce::MidiMessage m_message;
-    juce::String m_source;
+    juce::Component::SafePointer<MidiHandler> m_pOwner; // refernce to the parent class that created the callback
+    juce::MidiMessage m_message;    // MIDI message content
 };
