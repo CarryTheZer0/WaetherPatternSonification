@@ -1,6 +1,7 @@
 from microbit import *
 import math
 
+# send midi note on messgage
 def midiNoteOn(chan, n, vel):
     MIDI_NOTE_ON = 0x90
     if chan > 15:
@@ -12,6 +13,7 @@ def midiNoteOn(chan, n, vel):
     msg = bytes([MIDI_NOTE_ON | chan, n, vel])
     uart.write(msg)
 
+# send midi note off messgage
 def midiNoteOff(chan, n, vel):
     MIDI_NOTE_OFF = 0x80
     if chan > 15:
@@ -23,46 +25,49 @@ def midiNoteOff(chan, n, vel):
     msg = bytes([MIDI_NOTE_OFF | chan, n, vel])
     uart.write(msg)
 
+# initialise data transfer
 def Start():
     uart.init(baudrate=31250, bits=8, parity=None, stop=1, tx=pin0)
 
 Start()
-display.on()
-lastA = False
-lastB = False
-lastC = False
-BUTTON_A_NOTE = 35
+
+# define MIDI notes used (assigned arbitrarily)
 BUTTON_B_NOTE = 36
-BUTTON_C_NOTE = 37
+PIN_1_NOTE = 37
 POT_NOTE = 40
-last_pot = 0
+
+# initialise potentiometer value to 0
 pot = 0
+
+# initialise previous values to 0/false
+lastB = False
+lastPin = False
+last_pot = 0
+
 while True:
-    a = button_a.is_pressed()
     b = button_b.is_pressed()
-    c = pin1.is_touched()
+    pin = pin1.is_touched()
     pot = pin2.read_analog()
 
-    if a and not lastA:
-        midiNoteOn(0, BUTTON_A_NOTE, 127)
-    elif not a and lastA:
-        midiNoteOff(0, BUTTON_A_NOTE, 127)
+    # detect button inputs
     if b and not lastB:
         midiNoteOn(0, BUTTON_B_NOTE, 127)
     elif not b and lastB:
         midiNoteOff(0, BUTTON_B_NOTE, 127)
-    if c and not lastC:
-        midiNoteOn(0, BUTTON_C_NOTE, 127)
-    elif not c and lastC:
-        midiNoteOff(0, BUTTON_C_NOTE,  127)
+    if pin and not lastPin:
+        midiNoteOn(0, PIN_1_NOTE, 127)
+    elif not pin and lastPin:
+        midiNoteOff(0, PIN_1_NOTE,  127)
 
+    # detect potentiometer input
     if last_pot != pot:
+        # map input to MIDI notes
         velocity = 127 - math.floor(pot / 1024 * 127)
         midiNoteOn(0, POT_NOTE, velocity)
-    last_pot = pot
 
-    lastA = a
+    #update previous values
     lastB = b
-    lastC = c
+    lastPin = pin
+    last_pot = pot
     sleep(100)
 
