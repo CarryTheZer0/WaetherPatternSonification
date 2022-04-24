@@ -27,6 +27,7 @@ def Start():
     uart.init(baudrate=31250, bits=8, parity=None, stop=1, tx=pin0)
 
 Start()
+display.on()
 lastA = False
 lastB = False
 lastC = False
@@ -42,11 +43,11 @@ while True:
     c = pin1.is_touched()
     pot = pin2.read_analog()
 
-    if a:
+    if a and not lastA:
         midiNoteOn(0, BUTTON_A_NOTE, 127)
     elif not a and lastA:
         midiNoteOff(0, BUTTON_A_NOTE, 127)
-    if b:
+    if b and not lastB:
         midiNoteOn(0, BUTTON_B_NOTE, 127)
     elif not b and lastB:
         midiNoteOff(0, BUTTON_B_NOTE, 127)
@@ -56,7 +57,7 @@ while True:
         midiNoteOff(0, BUTTON_C_NOTE,  127)
 
     if last_pot != pot:
-        velocity = math.floor(pot / 1024 * 127)
+        velocity = 127 - math.floor(pot / 1024 * 127)
         midiNoteOn(0, POT_NOTE, velocity)
     last_pot = pot
 

@@ -1,7 +1,11 @@
 #include "MidiCallback.h"
 
+/**
+ *   messageCallback
+ *   sends a signal to the parent class to process a message
+ */
 void MidiCallback::messageCallback()
 {
-    if (m_owner != nullptr)
-        m_owner->processMessage(m_message, m_source);
+    if (m_pOwner != nullptr)
+        m_pOwner->processMessage(m_message);
 }

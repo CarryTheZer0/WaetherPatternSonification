@@ -5,7 +5,7 @@
 MainComponent::MainComponent() :
     m_midiHandler(this),
     m_mapComp(0, 0),
-    m_data("Resources\\StormEvents_details-ftp_v1.0_d2010_c20170726.csv", 2010),
+    m_data("..\\..\\Source\\Resources\\StormEvents_details-ftp_v1.0_d2010_c20170726.csv", 2010),
     m_metronome(this),
     m_longLabel("Long", "Longitude: "),
     m_latLabel("Lat", "Latitude: "),
@@ -152,32 +152,33 @@ void MainComponent::resized()
 void MainComponent::onMessage()
 {
     // move cursor
-    int increase = m_midiHandler.getVelocity(40);
+    int value = m_midiHandler.getVelocity(40);
     // switch statement to change the function of the potentiometer
     switch (m_state)
     {
         // Adjust longitude
         case ControlState::LONGITUDE: 
-            m_mapComp.setX(increase);
+            m_mapComp.setX(value);
             // display new longitude to UI
             m_longLabel.setText("Longitude: " + std::to_string(m_mapComp.getCoords().getX()), juce::NotificationType::dontSendNotification);
             break;
         // Adjust latitiude
         case ControlState::LATITUDE:
-            m_mapComp.setY(increase);
+            m_mapComp.setY(value);
             // display new latitude to UI
             m_latLabel.setText("Latitude: " + std::to_string(m_mapComp.getCoords().getY()), juce::NotificationType::dontSendNotification);
             break;
         // Adjust zoom
         case ControlState::ZOOM:
-            m_mapComp.setZoom(increase);
+            m_mapComp.setZoom(value);
             break;
         // Control playback
         case ControlState::PLAYBACK:
             float min = 1;
             float range = 50;
 
-            m_playbackSpeed = (increase / 127.0f) * range + min;
+            // map value from 0->127 to 51->1
+            m_playbackSpeed = ((127.0f - value) / 127.0f) * range + min;
 
             m_metronome.stopTimer();
             m_metronome.startTimer(m_playbackSpeed);
@@ -263,17 +264,18 @@ void MainComponent::stepThroughData(time_t step)
     juce::Point<float> coords = m_mapComp.getCoords();
 
     // count the total number of data points
-    int count = 0;
+    int severity = 0;
     for (const StormDataItem &item : myVect)
     {
         if (juce::Point<float>(item.longitude, item.latitude).getDistanceFrom(coords) < m_mapComp.getZoom())
-            count++;
+            severity = std::max(severity, item.severity);
     }
 
     // if data is present, play sound
-    if (count)
+    if (severity)
     {
         m_oscillator.reset();
+        m_oscillator.setFrequency(severity * 220.0f);
         m_playingSound = true;
     }
     else
